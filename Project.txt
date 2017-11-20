@@ -1,0 +1,10 @@
+Algorithm
+
+Design subprogram 1
+- This function will convert a single character in hexadecimal into decimal. It will do this by subtracting from the decimal value of the character that is entered the amount that would give the value that equals the decimal value of the character in hexadecimal. It will get the value that is to be converted from a register. The calculated value will be stored in a register.
+
+Design subprogram 2
+- This function will call subprogram 1. It will be the program that stores a string in a register that will be iterated to isolate each character. After each iteration the value of the character is passed to subprogram 1 which will be returned to subprogram 2. This will be repeated until the decimal value of the entire string is calculated. Subprogram 2 will then store this value in the stack.
+
+Design subprogram 3
+- This program will call subprogram 2. After calling subprogram 2 it will refer to the stack to get the value that was stored by subprogram 2 and finally output it.
