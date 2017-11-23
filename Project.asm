@@ -82,12 +82,15 @@ userInput: .space 4
 			j stringConversion
 			
 		doneStringConversion:
+			#store in stack
+			addi $sp, $sp, -4
+			sw $s1, 0($sp)
 		
-		la $a0, ($s1)
-		li $v0, 1
-		syscall
-		
-		done:
+		displayDecimal:
+			lw $s6, 0($sp)
+			la $a0, ($s6)
+			li $v0, 1
+			syscall
 		
 	li $v0, 10
 	syscall
