@@ -1,15 +1,17 @@
 .data
 
+word: .asciiz "test"
+camma: .asciiz ","
 newLine: .asciiz "\n"
 errorMessage: .asciiz "Error \n"
-userInput: .space 4
+userInput: .space 1000
 
 .text
 
 	main:
 		
 		la $a0, userInput
-		la $a1, 5
+		la $a1, 1001
 		li $v0, 8
 		syscall
 		
@@ -17,21 +19,34 @@ userInput: .space 4
 		li $v0, 4
 		syscall
 		
-		#start conversion. $s0(stores string) $s1(gets decimals added to it) $s2(stores bytes) $s3(number of chars) 
-		la $s0, userInput
+		#$s0(stores string) $s1(gets decimals added to it) $s2(stores bytes) 
+		#$s3(number of chars) $s4(stores decimal when displaying) 
+		#$s5 (is 1 when there is another number in input and 0 otherwise. Value gets checked after one conversion)
+		#$s6 stores user input and gets its offset changed to move to next string
+		
+		#start conversion. 
+		la $s6, userInput
+		startProcess:
+		move $s0, $s6
 		addi $s1, $zero, 0
 		addi $s3, $zero, 0
+		
 		
 		#count number of chars in string
 		countLoop:
 			lb $t1, 0($s0)
+			beq $t1, 44, acknowledgeNextNumber #a camma was reached
+			addi $s5, $zero, 0 #set acknowledgment of camma to none
 			beqz $t1, doneCounting
 			beq $t1, 10, doneCounting
 			addi $s0, $s0, 1
 			addi $s3, $s3, 1
 			j countLoop
+			acknowledgeNextNumber:
+				addi $s5, $zero, 1
+				j doneCounting
 		doneCounting:
-		la $s0, userInput #reset $s0
+		move $s0, $s6 #reset $s0
 		
 		stringConversion:
 		lb $s2, 0($s0)
@@ -41,10 +56,8 @@ userInput: .space 4
 		
 		charConversion:
 		
-			la $a0, newLine
-			li $v0, 4
-			syscall
-		
+			
+			beq $s2, 44, doneStringConversion
 			blt $s2, 48, error
 			blt $s2, 58, number
 			blt $s2, 65, error
@@ -72,7 +85,7 @@ userInput: .space 4
 				la $a0, errorMessage
 				li $v0, 4
 				syscall	
-				j doneCharConversion		
+				j done		
 									
 			doneCharConversion:
 		
@@ -87,10 +100,23 @@ userInput: .space 4
 			sw $s1, 0($sp)
 		
 		displayDecimal:
-			lw $s6, 0($sp)
-			la $a0, ($s6)
+			lw $s4, 0($sp)
+			la $a0, ($s4)
 			li $v0, 1
 			syscall
+		
+		#see if there was a camma after the number that was just converted. $s5 is 0 if there wasn't
+		beqz $s5, done
+		addi $s0, $s0, 1#add 1 to move past camma
+		move $s6, $s0  #increase offset by number of chars to start at next word
+		
+		la $a0, camma
+		li $v0, 4
+		syscall
+		
+		j startProcess
+		
+		done:
 		
 	li $v0, 10
 	syscall
