@@ -1,5 +1,6 @@
 .data
 
+naN: .asciiz "NaN"
 word: .asciiz "test"
 camma: .asciiz ","
 newLine: .asciiz "\n"
@@ -24,6 +25,7 @@ userInput: .space 1000
 		#$s3(number of chars) $s4(stores decimal when displaying) 
 		#$s5 (is 1 when there is another number in input and 0 otherwise. Value gets checked after one conversion)
 		#$s6 stores user input and gets its offset changed to move to next string
+		#s7 stores 1 if there hex is not a number 0 otherwise
 		
 		#start conversion. 
 		la $s6, userInput
@@ -51,9 +53,18 @@ userInput: .space 1000
 				
 		doneCounting:
 		
-		move $s0, $s6 #reset $s0
+		#make sure char count is 8 or less
+		addi $t0, $zero, 9
+		slt $t0, $s3, $t0
+		#beqz $t0, tooLarge #not made yet
+		
+		
+		move $s0, $s6 #reset $s0 to input
+		
+		addi $s7, $zero, 0 #set register that detects NaN to 0
 		
 		stringConversion:
+		
 		lb $s2, 0($s0)
 		
 		beqz $s2, doneStringConversion
@@ -87,10 +98,8 @@ userInput: .space 1000
 				add $s1, $s1, $s2
 				j doneCharConversion
 			error:
-				la $a0, errorMessage
-				li $v0, 4
-				syscall	
-				j done		
+				addi $s7, $zero, 1 #set to 1 to signal NaN detected. string will finish being converted however
+				j doneCharConversion	
 									
 			doneCharConversion:
 			subi $s3, $s3, 1 #reduce count of chars
@@ -105,11 +114,20 @@ userInput: .space 1000
 			addi $sp, $sp, -4
 			sw $s1, 0($sp)
 		
+	
+			beqz $s7, displayDecimal
+			la $a0, naN
+			li $v1, 4
+			syscall
+			j skipDisplayDecimal
+		
 		displayDecimal:
 			lw $s4, 0($sp)
 			la $a0, ($s4)
 			li $v0, 1
 			syscall
+			
+		skipDisplayDecimal:
 		
 		#see if there was a camma after the number that was just converted. $s5 is 0 if there wasn't
 		beqz $s5, done
