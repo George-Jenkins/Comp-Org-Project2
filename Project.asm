@@ -15,6 +15,7 @@ userInput: .space 1000
 		li $v0, 8
 		syscall
 		
+		
 		la $a0, newLine
 		li $v0, 4
 		syscall
@@ -35,17 +36,21 @@ userInput: .space 1000
 		#count number of chars in string
 		countLoop:
 			lb $t1, 0($s0)
+			beq $t1, 32, dontCountSpace
 			beq $t1, 44, acknowledgeNextNumber #a camma was reached
 			addi $s5, $zero, 0 #set acknowledgment of camma to none
 			beqz $t1, doneCounting
 			beq $t1, 10, doneCounting
-			addi $s0, $s0, 1
 			addi $s3, $s3, 1
+				dontCountSpace:
+			addi $s0, $s0, 1	
 			j countLoop
 			acknowledgeNextNumber:
 				addi $s5, $zero, 1
 				j doneCounting
+				
 		doneCounting:
+		
 		move $s0, $s6 #reset $s0
 		
 		stringConversion:
@@ -56,7 +61,7 @@ userInput: .space 1000
 		
 		charConversion:
 		
-			
+			beq $s2, 32, skipSpace #ignore space
 			beq $s2, 44, doneStringConversion
 			blt $s2, 48, error
 			blt $s2, 58, number
@@ -88,9 +93,10 @@ userInput: .space 1000
 				j done		
 									
 			doneCharConversion:
-		
-			addi $s0, $s0, 1 #add to adddress of string
 			subi $s3, $s3, 1 #reduce count of chars
+			
+			skipSpace:
+			addi $s0, $s0, 1 #add to adddress of string
 			
 			j stringConversion
 			
