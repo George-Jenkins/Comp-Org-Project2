@@ -1,6 +1,7 @@
 .data
 
 naN: .asciiz "NaN"
+tooLarge: .asciiz "too large"
 word: .asciiz "test"
 camma: .asciiz ","
 newLine: .asciiz "\n"
@@ -9,100 +10,108 @@ userInput: .space 1000
 
 .text
 
-	main:
+main:
 		
-		la $a0, userInput
-		la $a1, 1001
-		li $v0, 8
-		syscall
-		
-		
-		la $a0, newLine
-		li $v0, 4
-		syscall
-		
-		#$s0(stores string) $s1(gets decimals added to it) $s2(stores bytes) 
-		#$s3(number of chars) $s4(stores decimal when displaying) 
-		#$s5 (is 1 when there is another number in input and 0 otherwise. Value gets checked after one conversion)
-		#$s6 stores user input and gets its offset changed to move to next string
-		#s7 stores 1 if there hex is not a number 0 otherwise
-		
-		#start conversion. 
-		la $s6, userInput
-		startProcess:
-		move $s0, $s6
-		addi $s1, $zero, 0
-		addi $s3, $zero, 0
+	la $a0, userInput
+	la $a1, 1001
+	li $v0, 8
+	syscall
 		
 		
-		#count number of chars in string
-		countLoop:
-			lb $t1, 0($s0)
-			beq $t1, 32, dontCountSpace
-			beq $t1, 44, acknowledgeNextNumber #a camma was reached
-			addi $s5, $zero, 0 #set acknowledgment of camma to none
-			beqz $t1, doneCounting
-			beq $t1, 10, doneCounting
-			addi $s3, $s3, 1
-				dontCountSpace:
+		
+la $a0, newLine
+li $v0, 4
+syscall
+		
+	#$s0(stores string) $s1(gets decimals added to it) $s2(stores bytes) 
+	#$s3(number of chars) $s4(stores decimal when displaying) 
+	#$s5 (is 1 when there is another number in input and 0 otherwise. Value gets checked after one conversion)
+	#$s6 stores user input and gets its offset changed to move to next string
+	#s7 stores 1 if there hex is not a number 0 otherwise
+		
+	#start conversion. 
+	la $s6, userInput
+startProcess:
+	move $s0, $s6
+	addi $s1, $zero, 0
+	addi $s3, $zero, 0
+		
+		
+	#count number of chars in string
+	countLoop:
+		lb $t1, 0($s0)
+		beq $t1, 32, dontCountSpace
+		beq $t1, 44, acknowledgeNextNumber #a camma was reached
+		addi $s5, $zero, 0 #set acknowledgment of camma to none
+		beqz $t1, doneCounting
+		beq $t1, 10, doneCounting
+		addi $s3, $s3, 1
+			dontCountSpace:
 			addi $s0, $s0, 1	
 			j countLoop
 			acknowledgeNextNumber:
 				addi $s5, $zero, 1
 				j doneCounting
 				
-		doneCounting:
-		
-		#make sure char count is 8 or less
-		addi $t0, $zero, 9
-		slt $t0, $s3, $t0
-		#beqz $t0, tooLarge #not made yet
+	doneCounting:
 		
 		
-		move $s0, $s6 #reset $s0 to input
+	#make sure char count is 8 or less
+	#addi $t0, $zero, 9
+	#slt $t0, $s3, $t0
+	#beqz $t0, tooLarge #not made yet
 		
-		addi $s7, $zero, 0 #set register that detects NaN to 0
 		
-		stringConversion:
+	move $s0, $s6 #reset $s0 to input
 		
-		lb $s2, 0($s0)
+	addi $s7, $zero, 0 #set register that detects NaN to 0
+	addi $t7, $zero, 0 #set register that detects NaN to 0
+			
+	stringConversion:
 		
-		beqz $s2, doneStringConversion
-		beq $s2, 10, doneStringConversion
+	lb $s2, 0($s0)
 		
-		charConversion:
+	beqz $s2, doneStringConversion
+	beq $s2, 10, doneStringConversion
+		
+	charConversion:
 		
 			beq $s2, 32, skipSpace #ignore space
+			bgt $s3, 8, error2 
 			beq $s2, 44, doneStringConversion
 			blt $s2, 48, error
 			blt $s2, 58, number
 			blt $s2, 65, error
 			blt $s2, 91, uppercase
 			blt $s2, 97, error
-			blt $s2, 123, lowercase 
+			blt $s2, 123, lowercase
 			j error
 		  
 			lowercase:
-				subi $s2, $s2, 87
+				addi $s2, $s2, -87
 				jal calcMultiple
 				add $s1, $s1, $s2 
 				j doneCharConversion
 			uppercase:
-				subi $s2, $s2, 55
+				addi $s2, $s2, -55
 				jal calcMultiple
 				add $s1, $s1, $s2
 				j doneCharConversion
 			number:
-				subi $s2, $s2, 48
+				addi $s2, $s2, -48
 				jal calcMultiple
 				add $s1, $s1, $s2
 				j doneCharConversion
 			error:
 				addi $s7, $zero, 1 #set to 1 to signal NaN detected. string will finish being converted however
 				j doneCharConversion	
-									
+			error2:						
+				addi $t7, $zero, 1 #set to 1 to signal too large detected. string will finish being converted however
+				j doneCharConversion
+																																						
 			doneCharConversion:
-			subi $s3, $s3, 1 #reduce count of chars
+			addi $s3, $s3, -1 #reduce count of chars
+		
 			
 			skipSpace:
 			addi $s0, $s0, 1 #add to adddress of string
@@ -115,11 +124,19 @@ userInput: .space 1000
 			sw $s1, 0($sp)
 		
 	
-			beqz $s7, displayDecimal
+			beqz $s7, noError
 			la $a0, naN
 			li $v1, 4
 			syscall
 			j skipDisplayDecimal
+			noError:
+		
+			beqz $t7, noError2
+			la $a0, tooLarge
+			li $v1, 4
+			syscall
+			j skipDisplayDecimal
+			noError2:
 		
 		displayDecimal:
 			lw $s4, 0($sp)
