@@ -4,6 +4,7 @@ naN: .asciiz "NaN"
 tooLarge: .asciiz "too large"
 word: .asciiz "test"
 camma: .asciiz ","
+space: .asciiz ""
 newLine: .asciiz "\n"
 errorMessage: .asciiz "Error \n"
 userInput: .space 1000
@@ -34,19 +35,20 @@ syscall
 startProcess:
 	move $s0, $s6
 	addi $s1, $zero, 0
-	addi $s3, $zero, 0
-		
+	addi $s3, $zero, 0	
 		
 	#count number of chars in string
 	countLoop:
 		lb $t1, 0($s0)
-		beq $t1, 32, dontCountSpace
 		beq $t1, 44, acknowledgeNextNumber #a camma was reached
+		beq $t1, 32, dontCountSpaceOrEnter
+		beq $t1, 10, dontCountSpaceOrEnter
+		beq $t1, 9, dontCountSpaceOrEnter#skip tab
 		addi $s5, $zero, 0 #set acknowledgment of camma to none
 		beqz $t1, doneCounting
 		beq $t1, 10, doneCounting
 		addi $s3, $s3, 1
-			dontCountSpace:
+			dontCountSpaceOrEnter:
 			addi $s0, $s0, 1	
 			j countLoop
 			acknowledgeNextNumber:
@@ -54,14 +56,11 @@ startProcess:
 				j doneCounting
 				
 	doneCounting:
-		
-		
-	#make sure char count is 8 or less
-	#addi $t0, $zero, 9
-	#slt $t0, $s3, $t0
-	#beqz $t0, tooLarge #not made yet
-		
-		
+	
+	
+	#if there was no char skip a bunch of code
+	beqz $s3, skipDisplayDecimal
+				
 	move $s0, $s6 #reset $s0 to input
 		
 	addi $s7, $zero, 0 #set register that detects NaN to 0
@@ -74,17 +73,17 @@ startProcess:
 	beqz $s2, doneStringConversion
 	beq $s2, 10, doneStringConversion
 		
-	charConversion:
-		
+	charConversion:		
+			beq $s2, 9, skipSpace #ignore tab				
 			beq $s2, 32, skipSpace #ignore space
-			bgt $s3, 8, error2 
+			bgt $s3, 8, error2 # too large 
 			beq $s2, 44, doneStringConversion
 			blt $s2, 48, error
 			blt $s2, 58, number
 			blt $s2, 65, error
-			blt $s2, 91, uppercase
+			blt $s2, 71, uppercase
 			blt $s2, 97, error
-			blt $s2, 123, lowercase
+			blt $s2, 103, lowercase
 			j error
 		  
 			lowercase:
@@ -105,14 +104,13 @@ startProcess:
 			error:
 				addi $s7, $zero, 1 #set to 1 to signal NaN detected. string will finish being converted however
 				j doneCharConversion	
-			error2:						
+			error2:		
 				addi $t7, $zero, 1 #set to 1 to signal too large detected. string will finish being converted however
 				j doneCharConversion
 																																						
 			doneCharConversion:
 			addi $s3, $s3, -1 #reduce count of chars
 		
-			
 			skipSpace:
 			addi $s0, $s0, 1 #add to adddress of string
 			
@@ -120,10 +118,19 @@ startProcess:
 			
 		doneStringConversion:
 			#store in stack
-			addi $sp, $sp, -4
-			sw $s1, 0($sp)
-		
-	
+			addi $t0, $zero, 10
+			addi $sp, $sp, -8
+			la $s2, ($s1)
+			
+			divu $s2, $t0
+			mflo $s2
+			sw $s2, 4($sp)
+			
+			mfhi $s2
+			sb $s2, 0($sp)
+			#end store in stack
+			
+			
 			beqz $s7, noError
 			la $a0, naN
 			li $v1, 4
@@ -139,10 +146,19 @@ startProcess:
 			noError2:
 		
 		displayDecimal:
-			lw $s4, 0($sp)
-			la $a0, ($s4)
+			lw $t4, 4($sp)
+			beqz $t4, skipDisplayQuotient
+			la $a0, ($t4)
 			li $v0, 1
 			syscall
+			skipDisplayQuotient:
+			lw $t5, 0($sp)
+			la $a0, ($t5)
+			li $v0, 1
+			syscall
+			
+			addi $sp, $sp, 8
+			
 			
 		skipDisplayDecimal:
 		
