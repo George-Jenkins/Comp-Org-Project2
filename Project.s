@@ -59,8 +59,14 @@ startProcess:
 	
 	
 	#if there was no char skip a bunch of code
-	beqz $s3, skipDisplayDecimal
-				
+	bnez $s3, charDetected
+	la $a0, naN
+	li $v0, 4
+	syscall
+	j skipDisplayDecimal
+	charDetected:
+	
+													
 	move $s0, $s6 #reset $s0 to input
 		
 	addi $s7, $zero, 0 #set register that detects NaN to 0
